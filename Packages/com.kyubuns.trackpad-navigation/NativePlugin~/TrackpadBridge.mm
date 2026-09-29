@@ -28,7 +28,7 @@ TNEvent ReadEvent(NSEvent *event)
     value.screenX = point.x;
     value.screenY = ScreenTop() - point.y;
     value.windowNumber = static_cast<int32_t>(event.windowNumber);
-    value.phase = event.type == NSEventTypeSmartMagnify ? 0 : static_cast<int32_t>(event.phase);
+    value.phase = event.type == NSEventTypeSmartMagnify || event.type == NSEventTypeFlagsChanged ? 0 : static_cast<int32_t>(event.phase);
     auto modifiers = event.modifierFlags;
     if (modifiers & NSEventModifierFlagShift)
     {
@@ -82,7 +82,7 @@ TNEvent ReadEvent(NSEvent *event)
 
 int32_t TN_ApiVersion()
 {
-    return 1;
+    return 2;
 }
 int32_t TN_EventSize()
 {
@@ -100,7 +100,7 @@ int32_t TN_Start()
         return 1;
     }
     core.Reset();
-    monitor = [NSEvent addLocalMonitorForEventsMatchingMask:(NSEventMaskScrollWheel | NSEventMaskMagnify | NSEventMaskRotate | NSEventMaskSmartMagnify)
+    monitor = [NSEvent addLocalMonitorForEventsMatchingMask:(NSEventMaskScrollWheel | NSEventMaskMagnify | NSEventMaskRotate | NSEventMaskSmartMagnify | NSEventMaskFlagsChanged)
                                                     handler:^NSEvent *(NSEvent *event) {
                                                       // Public local monitor: only this process, no accessibility permission, no global event posting.
                                                       if (NSApp.modalWindow != nil || event.window.sheetParent != nil)
@@ -108,7 +108,14 @@ int32_t TN_Start()
                                                           core.Reset();
                                                           return event;
                                                       }
-                                                      bool consumed = core.Process(ReadEvent(event), Now(), NSApp.isActive, NSEvent.pressedMouseButtons != 0);
+                                                      auto value = ReadEvent(event);
+                                                      if (event.type == NSEventTypeFlagsChanged)
+                                                      {
+                                                          // Observe key transitions between swipes without consuming keyboard input.
+                                                          core.UpdateModifiers(value.modifiers);
+                                                          return event;
+                                                      }
+                                                      bool consumed = core.Process(value, Now(), NSApp.isActive, NSEvent.pressedMouseButtons != 0);
                                                       return consumed ? nil : event;
                                                     }];
     deactivateObserver = [NSNotificationCenter.defaultCenter addObserverForName:NSApplicationDidResignActiveNotification

@@ -188,5 +188,32 @@ int main()
     event = ScrollEvent();
     event.flags = 0;
     assert(!core.Process(event, 15, true, false));
+
+    core.Reset();
+    Arm(core, 16);
+    event = ScrollEvent();
+    event.modifiers = Option;
+    assert(core.Process(event, 16, true, false));
+    assert(core.Poll(received));
+    auto session = received.optionSession;
+    event.phase = Ended;
+    assert(core.Process(event, 16, true, false));
+    assert(core.Poll(received) && received.optionSession == session);
+    core.UpdateModifiers(Option | Shift);
+    event.phase = Began;
+    assert(core.Process(event, 16, true, false));
+    assert(core.Poll(received) && received.optionSession == session);
+    // Release/repress between swipes must be visible even when both events are still queued.
+    assert(core.Process(event, 16, true, false));
+    core.UpdateModifiers(0);
+    core.UpdateModifiers(Option);
+    assert(core.Process(event, 16, true, false));
+    assert(core.Poll(received) && received.optionSession == session);
+    assert(core.Poll(received) && received.optionSession != session);
+    session = received.optionSession;
+    core.Reset();
+    Arm(core, 17);
+    assert(core.Process(event, 17, true, false));
+    assert(core.Poll(received) && received.optionSession != session);
     std::cout << "Native core: all policy, precision, phase, overflow and lifecycle assertions passed.\n";
 }

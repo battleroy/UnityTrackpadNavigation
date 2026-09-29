@@ -52,6 +52,7 @@ Tested with macOS 26.6.2 and Unity 6000.3.23f1 on Apple Silicon.
 - UI Builder
 
 Orbit and look are available in Scene View.\
+Keep Option held to continue orbiting around the same point across multiple swipes. Release Option or move the cursor substantially before the next swipe to choose a new point.\
 Double-tap selects the object under the cursor and frames the selection, just like pressing F, in Scene View, GraphView, UI Builder, and Animator. Empty space leaves the selection and view unchanged.
 
 Game View supports pan and zoom while stopped or paused.\

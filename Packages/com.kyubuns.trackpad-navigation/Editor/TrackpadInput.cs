@@ -33,7 +33,8 @@ namespace TrackpadNavigation
         public GesturePhase Phase, MomentumPhase;
         public GestureModifiers Modifiers;
         public GestureFlags Flags;
-        public int WindowNumber, Target, Reserved;
+        public int WindowNumber, Target;
+        public uint OptionSession;
         public Vector2 ScreenPosition => new Vector2((float)ScreenX, (float)ScreenY);
         public bool IsMomentum => MomentumPhase != GesturePhase.None;
         public bool IsCaptured => (Flags & GestureFlags.Captured) != 0;
@@ -99,7 +100,7 @@ namespace TrackpadNavigation
             }
             try
             {
-                if (TN_ApiVersion() != 1 || TN_EventSize() != Marshal.SizeOf<TrackpadEvent>())
+                if (TN_ApiVersion() != 2 || TN_EventSize() != Marshal.SizeOf<TrackpadEvent>())
                 {
                     throw new InvalidOperationException("Native ABI mismatch. Rebuild TrackpadBridge and restart Unity.");
                 }

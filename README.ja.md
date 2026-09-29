@@ -50,7 +50,8 @@ Unity自身の設定を変更する項目で、Trackpad Navigationの **Restore 
 - VFX Graph
 - UI Builder
 
-回転・見回しはScene Viewに対応します。ダブルタップはScene View／GraphView／UI Builder／Animatorで、カーソル下の対象を選択してFキーと同じフォーカスを行います。空白部分では選択・表示を変更しません。
+回転・見回しはScene Viewに対応します。Optionを押したままなら、指を離してスワイプし直しても同じ基準点の周囲を回転します。Optionを離すか、次のスワイプ開始前にカーソルを大きく動かすと、基準点を選び直します。\
+ダブルタップはScene View／GraphView／UI Builder／Animatorで、カーソル下の対象を選択してFキーと同じフォーカスを行います。空白部分では選択・表示を変更しません。
 
 Game Viewは停止中・一時停止中の表示をパン・ズームできます。\
 再生中はゲーム入力を優先し、拡大率と画像端はUnity標準の範囲に制限します。

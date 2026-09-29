@@ -5,8 +5,11 @@ namespace TrackpadNavigation
 {
     internal sealed class SceneViewNavigation : NavigationTarget
     {
+        const float OrbitPointerResetDistance = 64;
         readonly SceneView view;
         Vector3? orbitPoint;
+        Vector2 orbitScreenPosition;
+        uint optionSession;
         Vector3? zoomPoint;
         SceneGesture scrollAction;
         public override string Description => "Scene View — Pan / Zoom / Orbit / Look";
@@ -28,6 +31,12 @@ namespace TrackpadNavigation
 
         protected override void ApplyInput(TrackpadEvent value, TrackpadPreferences settings)
         {
+            // Nativeで記録したOptionの押下区間を使い、キュー内でもキーを離した前後を区別する。
+            if (optionSession != value.OptionSession)
+            {
+                orbitPoint = null;
+                optionSession = value.OptionSession;
+            }
             if (value.Kind == GestureKind.SmartZoom)
             {
                 orbitPoint = zoomPoint = null;
@@ -54,19 +63,16 @@ namespace TrackpadNavigation
 
                 return;
             }
-            if (value.IsMomentum)
+            if (value.IsMomentum && !settings.Momentum)
             {
-                orbitPoint = null;
-                if (!settings.Momentum)
-                {
-                    return;
-                }
+                return;
             }
             var pivot = view.pivot;
             var rotation = view.rotation;
             float size = Mathf.Max(view.size, 0.0001f);
             if (value.Kind == GestureKind.Magnify)
             {
+                orbitPoint = null;
                 if ((phase & GesturePhase.Began) != 0)
                 {
                     zoomPoint = null;
@@ -102,7 +108,7 @@ namespace TrackpadNavigation
                 {
                     orbitPoint = null;
                 }
-                // Orbitは指を離した時点で終了し、慣性で別のPOIを取り直さない。
+                // Option押下中は指を置き直してもPOIを維持するが、慣性では回転しない。
                 if (action == SceneGesture.Orbit && value.IsMomentum)
                 {
                     return;
@@ -130,11 +136,12 @@ namespace TrackpadNavigation
 
                     if (action == SceneGesture.Orbit)
                     {
-                        if ((value.Phase & GesturePhase.Began) != 0)
+                        // 指の置き直しは許容し、別の場所を指して始めたスワイプだけPOIを取り直す。
+                        if ((value.Phase & GesturePhase.Began) != 0 &&
+                            Vector2.Distance(value.ScreenPosition, orbitScreenPosition) >= OrbitPointerResetDistance)
                         {
                             orbitPoint = null;
                         }
-
                         if (!orbitPoint.HasValue)
                         {
                             if ((value.Phase & GesturePhase.Ended) != 0)
@@ -143,6 +150,7 @@ namespace TrackpadNavigation
                             }
 
                             orbitPoint = ScenePicking.PointOfInterest(view, value.ScreenPosition);
+                            orbitScreenPosition = value.ScreenPosition;
                             if (!view.orthographic)
                             {
                                 float distance = view.cameraDistance;
@@ -173,7 +181,7 @@ namespace TrackpadNavigation
 
                     rotation = newRotation;
                 }
-                if ((value.Phase & GesturePhase.Ended) != 0)
+                if ((value.Phase & GesturePhase.Ended) != 0 && (value.Modifiers & GestureModifiers.Option) == 0)
                 {
                     orbitPoint = null;
                 }

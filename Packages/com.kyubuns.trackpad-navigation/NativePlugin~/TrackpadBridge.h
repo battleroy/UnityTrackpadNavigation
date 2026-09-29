@@ -12,7 +12,8 @@ extern "C"
     {
         double timestamp, screenX, screenY, deltaX, deltaY, magnification, rotation;
         uint64_t sequence;
-        int32_t kind, phase, momentumPhase, modifiers, flags, windowNumber, target, reserved;
+        int32_t kind, phase, momentumPhase, modifiers, flags, windowNumber, target;
+        uint32_t optionSession;
     } TNEvent;
 
     typedef struct TNCapture

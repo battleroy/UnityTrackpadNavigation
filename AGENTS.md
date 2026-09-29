@@ -37,7 +37,7 @@
 - `ZoomAreaNavigation`へ共通処理を集約し、アダプターには領域・寿命・軸・ビュー固有の制約を残す。独自の範囲setterを持つビューはUnity自身のsetterを使う。ルーラー・スクロールバー・操作UIをキャンバスに含めない。
 - Game Viewは停止中・一時停止中だけ操作し、再生中はゲーム入力を優先する。AnimationのDope Sheetは横軸のズームと階層一覧の共有縦スクロール、Curvesは両軸の変換を使う。Profiler CPU Timelineでは時間軸だけを拡大する。
 - GraphViewの位置の丸め端数は次の入力へ持ち越す。Shader Graphが位置ゼロで保存済み表示を復元する分岐も考慮する。ノード内の入力欄でもPan／Pinchはキャンバス操作として扱う。
-- SceneのPinchとOrbitは開始時の対象点を保持し、終了・取消で解放する。Perspectiveでは対象表面、Pinchの空白・Orthographicではpivot深度面を使う。Pickingした対象のMeshを公開Editor APIで読み、Collider・Read/Write設定を必須にしない。取得不能時のfallbackを維持する。
+- SceneのPinchは開始時の対象点を終了・取消まで保持する。OrbitはOptionを押し続けている間、複数スワイプで同じ対象点を使う。Optionの押し直し・大きくカーソルを動かしての再開・取消・他のナビゲーション・入力先の失効では再取得する。Perspectiveでは対象表面、Pinchの空白・Orthographicではpivot深度面を使う。Pickingした対象のMeshを公開Editor APIで読み、Collider・Read/Write設定を必須にしない。取得不能時のfallbackを維持する。
 - Sceneでは画面端の対象を中央へ寄せず、構図を維持する。終了・Momentum時の操作種別を保持し、OrbitにはMomentumを適用しない。2D／回転ロック時はPan、Lookはカメラ位置を維持する。NSEventのスクロール方向はmacOSの設定反映済みなので、再度反転しない。
 - VFX Graph・UI Builderの標準Scroll Zoomへの一時上書きは元値を保持し、無効化・Detach・Domain Reload・終了時に復元する。Shader Graphの設定はUnity自身のPreferencesを変更するため、プラグインのRestore defaultsと混同しない。
 

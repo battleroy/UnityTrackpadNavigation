@@ -41,7 +41,7 @@ int main()
     @autoreleasepool
     {
         [NSApplication sharedApplication];
-        assert(TN_ApiVersion() == 1 && TN_EventSize() == 96);
+        assert(TN_ApiVersion() == 2 && TN_EventSize() == 96);
         for (int index = 0; index < 2; ++index)
         {
             assert(TN_Start() == 1 && TN_Start() == 1);
@@ -62,6 +62,28 @@ int main()
         TNPointer pointer{};
         assert(TN_GetPointer(&pointer) == 1);
         TN_Start();
+        auto flags = [NSEvent keyEventWithType:NSEventTypeFlagsChanged location:NSZeroPoint
+                               modifierFlags:NSEventModifierFlagOption timestamp:0 windowNumber:0
+                                     context:nil characters:@"" charactersIgnoringModifiers:@""
+                                   isARepeat:NO keyCode:58];
+        [NSApp sendEvent:flags];
+        TNEvent queued{};
+        assert(!TN_Poll(&queued)); // Modifier keys must not become navigation input.
+        TNEvent probe{};
+        probe.kind = trackpad::Scroll;
+        probe.flags = trackpad::Precise;
+        probe.modifiers = trackpad::Option;
+        core.SetCapture({}, true, Now());
+        core.Process(probe, Now(), true, false);
+        assert(TN_Poll(&queued));
+        auto firstSession = queued.optionSession;
+        flags = [NSEvent keyEventWithType:NSEventTypeFlagsChanged location:NSZeroPoint
+                           modifierFlags:0 timestamp:0 windowNumber:0 context:nil
+                              characters:@"" charactersIgnoringModifiers:@"" isARepeat:NO keyCode:58];
+        [NSApp sendEvent:flags];
+        core.Process(probe, Now(), true, false);
+        assert(TN_Poll(&queued) && queued.optionSession != firstSession);
+        core.SetCapture({}, false, Now());
         TNStats before{}, after{};
         TN_GetStats(&before);
         [NSApp sendEvent:[TestPinch new]];

@@ -11,6 +11,7 @@ namespace TrackpadNavigation.Tests
         {
             Assert.That(Marshal.SizeOf<TrackpadEvent>(), Is.EqualTo(96));
             Assert.That(Marshal.OffsetOf<TrackpadEvent>(nameof(TrackpadEvent.Kind)).ToInt32(), Is.EqualTo(64));
+            Assert.That(Marshal.OffsetOf<TrackpadEvent>(nameof(TrackpadEvent.OptionSession)).ToInt32(), Is.EqualTo(92));
             Assert.That(Marshal.SizeOf<NativeCapture>(), Is.EqualTo(48));
             Assert.That(Marshal.SizeOf<NativePointer>(), Is.EqualTo(24));
             Assert.That(Marshal.SizeOf<NativeStats>(), Is.EqualTo(32));

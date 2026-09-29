@@ -27,6 +27,16 @@ class BridgeCore
     bool observe = false;
     TNStats stats{};
 
+    void UpdateModifiers(int modifiers)
+    {
+        bool held = (modifiers & Option) != 0;
+        if (held != optionHeld)
+        {
+            ++optionSession;
+            optionHeld = held;
+        }
+    }
+
     void SetCapture(const TNCapture &value, bool observing, double now)
     {
         capture = value;
@@ -36,6 +46,7 @@ class BridgeCore
 
     void Reset()
     {
+        ++optionSession;
         capture = {};
         scroll = {};
         magnify = {};
@@ -47,6 +58,8 @@ class BridgeCore
     // All calls run on the AppKit/Unity main thread. No reverse P/Invoke or retained managed pointers.
     bool Process(TNEvent event, double now, bool active, bool mouseDown)
     {
+        UpdateModifiers(event.modifiers);
+        event.optionSession = optionSession;
         ++stats.received;
         if (!active)
         {
@@ -107,6 +120,7 @@ class BridgeCore
             if (count == Capacity)
             {
                 ++stats.overflow;
+                ++optionSession;
                 scroll.target = magnify.target = 0;
                 return event.kind == Magnify; // Never leak a pinch into Unity's maximize gesture.
             }
@@ -145,6 +159,8 @@ class BridgeCore
     size_t head = 0, count = 0;
     double leaseUntil = 0;
     Stream scroll{}, magnify{};
+    uint32_t optionSession = 0;
+    bool optionHeld = false;
 };
 static_assert(sizeof(TNEvent) == 96, "TNEvent ABI changed");
 static_assert(sizeof(TNCapture) == 48, "TNCapture ABI changed");

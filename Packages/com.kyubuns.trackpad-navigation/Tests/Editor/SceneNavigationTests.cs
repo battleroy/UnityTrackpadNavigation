@@ -1,10 +1,138 @@
+using System.Collections;
+using System.Reflection;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace TrackpadNavigation.Tests
 {
     public sealed class SceneNavigationTests
     {
+        [UnityTest]
+        public IEnumerator OrbitRetainsAnchorUntilOptionOrPointerStartsANewOperation()
+        {
+            var previousWindow = EditorWindow.focusedWindow;
+            var view = ScriptableObject.CreateInstance<SceneView>();
+            Vector2 screen = default;
+            int picks = 0;
+            void ReadScreenPoint(SceneView current)
+            {
+                if (current == view && Event.current.type == EventType.Repaint)
+                {
+                    screen = GUIUtility.GUIToScreenPoint(HandleUtility.WorldToGUIPoint(view.pivot));
+                }
+                if (current == view && Event.current.type == EventType.ExecuteCommand &&
+                    Event.current.commandName == "TrackpadNavigation.PickObject")
+                {
+                    ++picks;
+                }
+            }
+            SceneView.duringSceneGui += ReadScreenPoint;
+            try
+            {
+                view.Show();
+                view.Focus();
+                EditorMember.Set(EditorMember.Get(view, "overlayCanvas"), "overlaysEnabled", false);
+                foreach (bool orthographic in new[]
+                {
+                    false,
+                    true
+                })
+                {
+                    view.LookAt(Vector3.zero, Quaternion.identity, 8, orthographic, instant: true);
+                    picks = 0;
+                    for (int frame = 0; frame < 5; ++frame)
+                    {
+                        view.Repaint();
+                        yield return null;
+                    }
+                    Assert.That(screen, Is.Not.EqualTo(Vector2.zero));
+                    var settings = new TrackpadPreferences();
+                    var capture = TrackpadNavigator.CaptureFor(view, new NativePointer
+                    {
+                        X = screen.x, Y = screen.y, Active = 1, WindowNumber = 1
+                    }, settings);
+                    Assert.That(capture.Kinds & 1, Is.EqualTo(1));
+                    var target = (SceneViewNavigation)typeof(TrackpadNavigator)
+                        .GetField("target", BindingFlags.Static | BindingFlags.NonPublic).GetValue(null);
+                    Assert.That(target.HitTest(screen - view.position.position), Is.True);
+                    var input = new TrackpadEvent
+                    {
+                        Kind = GestureKind.Scroll, Phase = GesturePhase.Began,
+                        Modifiers = GestureModifiers.Option, OptionSession = 1,
+                        ScreenX = screen.x, ScreenY = screen.y, DeltaX = 20
+                    };
+                    target.Apply(input, settings);
+                    Assert.That(picks, Is.EqualTo(1));
+                    // GPU Pickingに依存せず、画面端の既知のPOIでカメラの回転と寿命を検証する。
+                    var anchor = new Vector3(2, 1, 0);
+                    typeof(SceneViewNavigation).GetField("orbitPoint", BindingFlags.Instance | BindingFlags.NonPublic)
+                        .SetValue(target, anchor);
+                    input.Phase = GesturePhase.Ended;
+                    input.DeltaX = 0;
+                    target.Apply(input, settings);
+                    var rotation = view.rotation;
+                    var pivot = view.pivot;
+                    input.Phase = GesturePhase.None;
+                    input.MomentumPhase = GesturePhase.Began;
+                    input.DeltaX = 100;
+                    target.Apply(input, settings);
+                    Assert.That(view.rotation, Is.EqualTo(rotation));
+                    Assert.That(view.pivot, Is.EqualTo(pivot));
+                    input.MomentumPhase = GesturePhase.None;
+                    input.Phase = GesturePhase.Began;
+                    input.ScreenX += 10;
+                    input.DeltaX = 20;
+                    target.Apply(input, settings);
+                    Assert.That(EditorMember.Get(target, "orbitPoint"), Is.EqualTo(anchor));
+                    Assert.That(picks, Is.EqualTo(1));
+                    var before = Quaternion.Inverse(rotation) * (anchor - pivot);
+                    var after = Quaternion.Inverse(view.rotation) * (anchor - view.pivot);
+                    Assert.That(Vector3.Distance(before, after), Is.LessThan(0.001f));
+
+                    input.Phase = GesturePhase.Changed;
+                    input.ScreenX += 150;
+                    input.DeltaX = 0;
+                    target.Apply(input, settings);
+                    Assert.That(EditorMember.Get(target, "orbitPoint"), Is.EqualTo(anchor), "Cursor movement during a swipe must not change its anchor");
+                    input.ScreenX -= 150;
+                    input.Phase = GesturePhase.Began;
+
+                    // カーソルが同じ場所でも、Optionを押し直したら現在の表面を拾い直す。
+                    input.OptionSession = 3;
+                    input.DeltaX = 0;
+                    target.Apply(input, settings);
+                    Assert.That(picks, Is.EqualTo(2), "A new Option press must pick again at the same cursor position");
+
+                    input.ScreenX += 150;
+                    input.DeltaX = 0;
+                    target.Apply(input, settings);
+                    Assert.That(picks, Is.EqualTo(3), "A distant cursor must pick again even while Option stays held");
+
+                    input.Phase = GesturePhase.Cancelled;
+                    target.Apply(input, settings);
+                    Assert.That(EditorMember.Get(target, "orbitPoint"), Is.Null);
+                    input.Phase = GesturePhase.Began;
+                    target.Apply(input, settings);
+                    input.Modifiers = GestureModifiers.Command | GestureModifiers.Option;
+                    target.Apply(input, settings);
+                    Assert.That(EditorMember.Get(target, "orbitPoint"), Is.Null);
+                    TrackpadNavigator.ClearTarget();
+                }
+            }
+            finally
+            {
+                SceneView.duringSceneGui -= ReadScreenPoint;
+                TrackpadNavigator.ClearTarget();
+                view.Close();
+                if (previousWindow)
+                {
+                    previousWindow.Focus();
+                }
+            }
+        }
+
         [Test]
         public void PanTracksScreenPointsAcrossDepthAndProjection()
         {
